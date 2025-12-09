@@ -50,6 +50,18 @@ body {
   height: calc(100vh - 120px);
   overflow: auto;
 }
+.nav-item {
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  transition: box-shadow 200ms ease, border-color 160ms ease,
+    transform 160ms ease;
+}
+.nav-item:hover {
+  border-color: rgba(110, 231, 183, 0.7); /* mint neon */
+  box-shadow: 0 0 0 1px rgba(110, 231, 183, 0.85),
+    0 0 12px 2px rgba(110, 231, 183, 0.5);
+  transform: translateY(-1px);
+  cursor: pointer;
+}
 .card {
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent);
   padding: 14px;
@@ -138,6 +150,21 @@ body {
   font-weight: 600;
   margin-top: 6px;
 }
+/* Neon green text for active devices count */
+.text-neon-green {
+  color: #6ee7b7; /* matches mint accent */
+  text-shadow: 0 0 6px rgba(110, 231, 183, 0.6);
+}
+/* Neon yellow text for latency value */
+.text-neon-yellow {
+  color: #facc15;
+  text-shadow: 0 0 6px rgba(250, 204, 21, 0.6);
+}
+/* Neon red text for pollutant surge */
+.text-neon-red {
+  color: #ff385c;
+  text-shadow: 0 0 6px rgba(255, 56, 92, 0.6);
+}
 .graphWrap {
   padding: 12px;
   height: 320px;
@@ -158,6 +185,11 @@ body {
   align-items: flex-start;
   animation: none;
   will-change: transform, opacity;
+  .nav-item.active {
+    border-color: rgba(110, 231, 183, 0.7);
+    box-shadow: 0 0 0 1px rgba(110, 231, 183, 0.85),
+      0 0 10px 2px rgba(110, 231, 183, 0.45);
+  }
   overflow-wrap: anywhere;
 }
 .logTime {
@@ -219,6 +251,73 @@ body {
 }
 .logItem.enter {
   animation: popIn 360ms ease-out both;
+}
+
+/* Modal styles for log details */
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+}
+.modalBackdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(2, 6, 23, 0.7);
+  backdrop-filter: blur(2px);
+  border: none;
+}
+.modalCard {
+  position: relative;
+  max-width: 560px;
+  width: calc(100% - 32px);
+  padding: 16px;
+  border-radius: 12px;
+  background: linear-gradient(
+    180deg,
+    rgba(17, 24, 39, 0.95),
+    rgba(2, 6, 23, 0.92)
+  );
+  border: 1px solid rgba(148, 163, 184, 0.18);
+}
+.closeBtn {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #e6eef8;
+  border-radius: 8px;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.closeBtn:hover {
+  box-shadow: 0 0 0 1px rgba(148, 163, 184, 0.45);
+}
+
+@media (max-width: 520px) {
+  .modalCard {
+    max-width: 480px;
+    width: calc(100% - 24px);
+    padding: 14px;
+  }
+}
+@media (max-width: 360px) {
+  .modalCard {
+    width: calc(100% - 18px);
+    padding: 12px;
+    border-radius: 10px;
+  }
+}
+@media (max-width: 320px) {
+  .modalCard {
+    width: calc(100% - 14px);
+    padding: 10px;
+    border-radius: 10px;
+  }
 }
 
 /* responsive rules */
