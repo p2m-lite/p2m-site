@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 
-export default function Logs() {
+export default function Logs({ onSelectRecorder }) {
   const [logs, setLogs] = useState([]);
   const listRef = useRef(null);
   const idRef = useRef(1);
@@ -147,7 +147,10 @@ export default function Logs() {
           <button
             type="button"
             key={s.id}
-            onClick={() => setSelected(s)}
+            onClick={() => {
+              setSelected(s);
+              if (s.recorder && onSelectRecorder) onSelectRecorder(s.recorder);
+            }}
             className={`logItem glow-hover ${s.__enter ? "enter" : ""}`}
             style={{
               width: "100%",

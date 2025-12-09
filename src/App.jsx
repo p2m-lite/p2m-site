@@ -14,6 +14,9 @@ export default function App() {
   const [criticalSurgeCount, setCriticalSurgeCount] = useState(0);
   const lastProcessedTsRef = React.useRef(null);
   const [serverStatus, setServerStatus] = useState("-");
+  const [selectedRecorder, setSelectedRecorder] = useState(
+    "0x0D2bD687Ee43d92C6aEC83e5fFA81ec5a2A07558"
+  );
 
   useEffect(() => {
     const controller = new AbortController();
@@ -111,7 +114,9 @@ export default function App() {
     const checkLatest = async () => {
       try {
         const res = await fetch(
-          "https://p2m.040203.xyz/api/logs/history?recorder=0x50174122C6F6b0FD7cd47C8DE9ae43E848139a83&days=1"
+          `https://p2m.040203.xyz/api/logs/history?recorder=${encodeURIComponent(
+            selectedRecorder
+          )}&days=1`
         );
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const json = await res.json();
@@ -173,7 +178,67 @@ export default function App() {
       aborted = true;
       if (timer) clearInterval(timer);
     };
-  }, []);
+  }, [selectedRecorder]);
+
+  // Recompute surge counts when recorder changes using 2-day history
+  useEffect(() => {
+    let cancelled = false;
+    const computeFromHistory = async () => {
+      try {
+        const url = `https://p2m.040203.xyz/api/logs/history?recorder=${encodeURIComponent(
+          selectedRecorder
+        )}&days=2`;
+        const res = await fetch(url);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const json = await res.json();
+        const history = Array.isArray(json?.history) ? json.history : [];
+        const seenTs = new Set();
+        let minor = 0;
+        let critical = 0;
+        for (const item of history) {
+          const ts = Number(item?.timestamp);
+          if (!Number.isFinite(ts) || seenTs.has(ts)) continue;
+          seenTs.add(ts);
+          const turbidity = Number(item?.turbidity);
+          const phValue =
+            item?.ph !== undefined
+              ? Number(item.ph)
+              : item?.phValue !== undefined
+              ? Number(item.phValue)
+              : NaN;
+
+          const turbidityMinor =
+            Number.isFinite(turbidity) &&
+            turbidity > THRESHOLDS.turbidityMinorNtu;
+          const phMinorOut =
+            Number.isFinite(phValue) &&
+            (phValue < THRESHOLDS.phMinorMin ||
+              phValue > THRESHOLDS.phMinorMax);
+          const turbidityCrit =
+            Number.isFinite(turbidity) &&
+            turbidity > THRESHOLDS.turbidityCriticalNtu;
+          const phCritOut =
+            Number.isFinite(phValue) &&
+            (phValue < THRESHOLDS.phCriticalMin ||
+              phValue > THRESHOLDS.phCriticalMax);
+
+          if (turbidityMinor || phMinorOut || turbidityCrit || phCritOut)
+            minor++;
+          if (turbidityCrit || phCritOut) critical++;
+        }
+        if (!cancelled) {
+          setSurgeCount(minor);
+          setCriticalSurgeCount(critical);
+        }
+      } catch (e) {
+        console.error("Surge compute error:", e);
+      }
+    };
+    computeFromHistory();
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedRecorder]);
   return (
     <div style={{ paddingBottom: 24 }}>
       <div
@@ -197,7 +262,7 @@ export default function App() {
             <Widget
               title="Active Devices"
               value={deviceCount}
-              muted="0+% since last week"
+              muted="0%+ since last week"
               className="hover-neon-green"
               valueClassName="text-neon-green"
             />
@@ -222,7 +287,7 @@ export default function App() {
           {activeView === "dashboard" && (
             <section className="grid" style={{ marginBottom: 12 }}>
               <div style={{ gridColumn: "1 / span 2" }}>
-                <Graph />
+                <Graph recorder={selectedRecorder} />
               </div>
               <div>
                 <div className="card neon-anim" style={{ padding: 12 }}>
@@ -278,7 +343,9 @@ export default function App() {
             <div className="card">
               <div style={{ fontWeight: 700 }}>Activity Logs</div>
             </div>
-            <Logs />
+            <Logs
+              onSelectRecorder={(addr) => addr && setSelectedRecorder(addr)}
+            />
           </section>
         </main>
       </div>

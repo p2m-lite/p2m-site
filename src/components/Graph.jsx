@@ -19,7 +19,7 @@ ChartJS.register(
   Filler
 );
 
-export default function Graph() {
+export default function Graph({ recorder }) {
   const [chartData, setChartData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const chartRef = useRef(null);
@@ -37,7 +37,7 @@ export default function Graph() {
     const fetchData = async () => {
       try {
         const response = await fetch(
-          "https://p2m.040203.xyz/api/logs/history?recorder=0x50174122C6F6b0FD7cd47C8DE9ae43E848139a83&days=2",
+          `https://p2m.040203.xyz/api/logs/history?recorder=0x0D2bD687Ee43d92C6aEC83e5fFA81ec5a2A07558&days=2`,
           { signal }
         );
 
@@ -89,7 +89,9 @@ export default function Graph() {
 
     fetchData();
 
-    return () => controller.abort();
+    return () => {
+      controller.abort();
+    };
   }, []);
 
   // --- SETTINGS FOR COLORS ARE HERE ---
