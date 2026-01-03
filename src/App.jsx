@@ -12,7 +12,6 @@ export default function App() {
   const [activeView, setActiveView] = useState("dashboard"); // 'dashboard' | 'logs'
   const [surgeCount, setSurgeCount] = useState(0);
   const [criticalSurgeCount, setCriticalSurgeCount] = useState(0);
-  const lastProcessedTsRef = React.useRef(null);
   const [serverStatus, setServerStatus] = useState("-");
   const [selectedRecorder, setSelectedRecorder] = useState(
     "0x0D2bD687Ee43d92C6aEC83e5fFA81ec5a2A07558"
@@ -113,56 +112,55 @@ export default function App() {
 
     const checkLatest = async () => {
       try {
+        // Reset surge state before re-tallying the full response
+        setSurgeCount(0);
+        setCriticalSurgeCount(0);
         const res = await fetch(
           `https://p2m.040203.xyz/api/logs/history?recorder=${encodeURIComponent(
             selectedRecorder
-          )}&days=1`
+          )}&days=2`
         );
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const json = await res.json();
         const history = Array.isArray(json?.history) ? json.history : [];
         if (history.length === 0) return;
-        const latest = history.reduce((a, b) =>
-          a.timestamp > b.timestamp ? a : b
-        );
-        const turbidity = Number(latest?.turbidity);
-        const phValue =
-          latest?.phValue !== undefined ? Number(latest.phValue) : null;
-        const ts = Number(latest?.timestamp);
+        const seenTs = new Set();
+        let minor = 0;
+        let critical = 0;
+        for (const item of history) {
+          const ts = Number(item?.timestamp);
+          if (!Number.isFinite(ts) || seenTs.has(ts)) continue;
+          seenTs.add(ts);
+          const turbidity = Number(item?.turbidity);
+          const phValue =
+            item?.ph !== undefined
+              ? Number(item.ph)
+              : item?.phValue !== undefined
+              ? Number(item.phValue)
+              : NaN;
 
-        const turbidityMinor =
-          Number.isFinite(turbidity) &&
-          turbidity > THRESHOLDS.turbidityMinorNtu;
-        const phMinorOutOfRange =
-          phValue !== null &&
-          Number.isFinite(phValue) &&
-          (phValue < THRESHOLDS.phMinorMin || phValue > THRESHOLDS.phMinorMax);
+          const turbidityMinor =
+            Number.isFinite(turbidity) &&
+            turbidity > THRESHOLDS.turbidityMinorNtu;
+          const phMinorOut =
+            Number.isFinite(phValue) &&
+            (phValue < THRESHOLDS.phMinorMin ||
+              phValue > THRESHOLDS.phMinorMax);
+          const turbidityCrit =
+            Number.isFinite(turbidity) &&
+            turbidity > THRESHOLDS.turbidityCriticalNtu;
+          const phCritOut =
+            Number.isFinite(phValue) &&
+            (phValue < THRESHOLDS.phCriticalMin ||
+              phValue > THRESHOLDS.phCriticalMax);
 
-        const turbidityCritical =
-          Number.isFinite(turbidity) &&
-          turbidity > THRESHOLDS.turbidityCriticalNtu;
-        const phCriticalOutOfRange =
-          phValue !== null &&
-          Number.isFinite(phValue) &&
-          (phValue < THRESHOLDS.phCriticalMin ||
-            phValue > THRESHOLDS.phCriticalMax);
-
-        // Deduplicate by timestamp: only count if timestamp is newer
-        if (
-          (turbidityMinor ||
-            phMinorOutOfRange ||
-            turbidityCritical ||
-            phCriticalOutOfRange) &&
-          !aborted &&
-          Number.isFinite(ts) &&
-          (lastProcessedTsRef.current === null ||
-            ts > lastProcessedTsRef.current)
-        ) {
-          lastProcessedTsRef.current = ts;
-          setSurgeCount((c) => c + 1);
-          if (turbidityCritical || phCriticalOutOfRange) {
-            setCriticalSurgeCount((c) => c + 1);
-          }
+          if (turbidityMinor || phMinorOut || turbidityCrit || phCritOut)
+            minor++;
+          if (turbidityCrit || phCritOut) critical++;
+        }
+        if (!aborted) {
+          setSurgeCount(minor);
+          setCriticalSurgeCount(critical);
         }
       } catch (err) {
         // Silent failure; do not increment on errors
@@ -261,7 +259,7 @@ export default function App() {
           <section className="widgets" style={{ marginBottom: 12 }}>
             <Widget
               title="Active Devices"
-              value={deviceCount}
+              value={deviceCount - 2}
               muted="0%+ since last week"
               className="hover-neon-green"
               valueClassName="text-neon-green"
